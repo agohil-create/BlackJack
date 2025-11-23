@@ -1,0 +1,5 @@
+{
+  "name": "blackjack by khel.fun",
+  "description": "A premium Blackjack experience featuring 'Vic', an AI-powered dealer who comments on your gameplay, wins, and losses using Gemini 2.5 Flash.",
+  "requestFramePermissions": []
+}
