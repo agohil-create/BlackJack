@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, GameState, GameResult, ChipValue, HandMetadata, Suit } from './types';
 import { createDeck, calculateScore, evaluatePerfectPairs, evaluate21Plus3 } from './utils/blackjackUtils';
 import { CardComponent } from './components/CardComponent';
@@ -6,8 +6,9 @@ import { Chip } from './components/Chip';
 import { VicAvatar } from './components/VicAvatar';
 import { DeckPile } from './components/DeckPile';
 import { ChatWidget } from './components/ChatWidget';
+import { BrandLogo } from './components/BrandLogo';
 import { getDealerComment, generateDealerAvatar } from './services/geminiService';
-import { Coins, RefreshCw, User, Shield, Split, ShieldAlert, ArrowDownCircle, Flag, Gem, Spade, MessageSquare } from 'lucide-react';
+import { Coins, RefreshCw, Shield, Split, ShieldAlert, ArrowDownCircle, Flag, Gem, Spade } from 'lucide-react';
 import { 
   initAudio, 
   playCardSound, 
@@ -18,11 +19,17 @@ import {
   playMessageSound 
 } from './utils/audioManager';
 
+// Procedural Textures (SVG Data URIs) - REFINED FOR REALISM
+const LEATHER_TEXTURE = `data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.5'/%3E%3C/svg%3E`;
+
+// Complex Woven Fabric Filter: Turbulence -> Bump Map Lighting
+const FELT_TEXTURE = `data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='feltFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='4' result='noise'/%3E%3CfeDiffuseLighting in='noise' lighting-color='%23ffffff' surfaceScale='1.5'%3E%3CfeDistantLight azimuth='45' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23feltFilter)' opacity='0.5'/%3E%3C/svg%3E`;
+
 const CHIPS: ChipValue[] = [
-  { value: 5, color: 'bg-red-600', borderColor: 'border-white', label: '5' },
-  { value: 25, color: 'bg-green-600', borderColor: 'border-white', label: '25' },
-  { value: 100, color: 'bg-black', borderColor: 'border-red-500', label: '100' },
-  { value: 500, color: 'bg-purple-700', borderColor: 'border-yellow-400', label: '500' },
+  { value: 5, color: 'bg-khel-red', borderColor: 'border-white', label: '5' },
+  { value: 25, color: 'bg-khel-orange', borderColor: 'border-white', label: '25' },
+  { value: 100, color: 'bg-black', borderColor: 'border-khel-cyan', label: '100' },
+  { value: 500, color: 'bg-purple-700', borderColor: 'border-khel-yellow', label: '500' },
 ];
 
 const INITIAL_BALANCE = 1000;
@@ -52,12 +59,13 @@ const App: React.FC = () => {
   const [sideBetResults, setSideBetResults] = useState<{pp?: string, rummy?: string}>({});
 
   // UX / AI
-  const [dealerMessage, setDealerMessage] = useState("Welcome to the high limit room.");
+  const [dealerMessage, setDealerMessage] = useState("Let's play.");
   const [showComments, setShowComments] = useState(true);
   const [isThinking, setIsThinking] = useState(false);
   const [dealerImageUrl, setDealerImageUrl] = useState<string | null>(null);
   
   const lastCommentRequestTime = useRef<number>(0);
+  const [selectedChip, setSelectedChip] = useState<number>(CHIPS[1].value);
 
   useEffect(() => {
     setDeck(createDeck(6));
@@ -137,7 +145,7 @@ const App: React.FC = () => {
     // Prepare deck
     let currentDeck = [...deck];
     if (currentDeck.length < 52) {
-      setDealerMessage("Shuffling the shoe... one moment.");
+      setDealerMessage("Shuffling...");
       await new Promise(r => setTimeout(r, 1500));
       currentDeck = createDeck(6);
       setDeck(currentDeck);
@@ -220,7 +228,7 @@ const App: React.FC = () => {
 
     if (isAce) {
         setGameState(GameState.Insurance);
-        setDealerMessage(sideBetWinnings > 0 ? "Nice side wins! Insurance now?" : "Insurance?");
+        setDealerMessage(sideBetWinnings > 0 ? "Nice side wins! Insurance?" : "Insurance?");
         triggerDealerComment(GameState.Insurance, [], [pHand], dHand, 'insurance');
     } else if (upCardValue === 10) {
         checkForDealerBlackjack(dHand, currentDeck, [pHand], [{ bet: currentBet, isDoubled: false, isSurrendered: false }]);
@@ -231,8 +239,8 @@ const App: React.FC = () => {
         if (pScore === 21) {
              handleGameOver([pHand], dHand, [GameResult.Blackjack], [{ bet: currentBet, isDoubled: false, isSurrendered: false }]);
         } else {
-             if (sideBetWinnings > 0) setDealerMessage("Side bets paid. Good luck.");
-             else setDealerMessage("Good luck.");
+             if (sideBetWinnings > 0) setDealerMessage("Side bets paid.");
+             else setDealerMessage("Your move.");
              triggerDealerComment(GameState.Playing, [GameResult.None], [pHand], dHand);
         }
     }
@@ -247,11 +255,11 @@ const App: React.FC = () => {
             playChipSound(cost);
             setDealerMessage("Insurance placed.");
         } else {
-            setDealerMessage("Insufficient funds for insurance.");
+            setDealerMessage("Insufficient funds.");
             return;
         }
      } else {
-         setDealerMessage("No insurance. Very well.");
+         setDealerMessage("No insurance.");
      }
      checkForDealerBlackjack(dealerHand, deck, playerHands, handMetadata);
   };
@@ -318,7 +326,7 @@ const App: React.FC = () => {
       const cost = currentMeta.bet;
       
       if (balance < cost) {
-          setDealerMessage("Insufficient funds to double.");
+          setDealerMessage("Insufficient funds.");
           return;
       }
       
@@ -376,7 +384,7 @@ const App: React.FC = () => {
     const currentMeta = handMetadata[0];
     
     if (balance < currentMeta.bet) {
-        setDealerMessage("Insufficient funds to split.");
+        setDealerMessage("Insufficient funds.");
         return;
     }
 
@@ -404,13 +412,13 @@ const App: React.FC = () => {
     setHandResults([GameResult.None, GameResult.None]);
     setActiveHandIndex(0); 
     
-    setDealerMessage("Splitting. Two hands in play.");
+    setDealerMessage("Splitting. Double trouble.");
     playMessageSound();
   };
 
   const stand = async (
       currentHandsState = playerHands, 
-      currentResultsState = handResults,
+      currentResultsState = handResults, 
       currentMetaState = handMetadata
   ) => {
     if (activeHandIndex < currentHandsState.length - 1) {
@@ -422,17 +430,16 @@ const App: React.FC = () => {
 
     setGameState(GameState.DealerTurn);
     
-    // DELAY 1: Dramatic pause before dealer even touches the card
+    // DELAY 1
     await new Promise(r => setTimeout(r, 800));
 
-    // REVEAL HOLE CARD (Trigger the flip animation)
+    // REVEAL HOLE CARD 
     let currentDealerHand = [...dealerHand];
     currentDealerHand[1].isHidden = false;
     setDealerHand([...currentDealerHand]);
-    playCardSound(); // Sound effect for the flip start
+    playCardSound(); 
     
-    // DELAY 2: Dramatic pause while the flip animation (1200ms) completes and settles
-    // Giving the player time to realize if they are screwed
+    // DELAY 2
     await new Promise(r => setTimeout(r, 1600));
     
     const allDone = currentResultsState.every(r => r === GameResult.Bust || r === GameResult.Surrender || r === GameResult.Blackjack);
@@ -448,7 +455,6 @@ const App: React.FC = () => {
       let dScore = calculateScore(currentDealerHand);
       let deckCopy = [...deck];
 
-      // Another small delay before dealer hits if they need to
       if (dScore < 17) await new Promise(resolve => setTimeout(resolve, 800));
 
       while (dScore < 17) {
@@ -458,7 +464,6 @@ const App: React.FC = () => {
         setDealerHand([...currentDealerHand]);
         setDeck(deckCopy);
         dScore = calculateScore(currentDealerHand);
-        // Realistic slow pace between dealer hits
         await new Promise(resolve => setTimeout(resolve, 1400));
       }
 
@@ -571,160 +576,172 @@ const App: React.FC = () => {
     : handResults.includes(GameResult.Bust) ? GameResult.Bust
     : GameResult.None;
 
-  // Drag/Drop simulators
-  const [selectedChip, setSelectedChip] = useState<number>(CHIPS[1].value);
-
   return (
-    <div className="min-h-screen w-full bg-[#0a0a0a] text-white selection:bg-gold-500 selection:text-black overflow-hidden flex flex-col font-inter relative">
+    <div className="min-h-screen w-full bg-[#050505] text-white selection:bg-khel-cyan selection:text-black overflow-hidden flex flex-col font-sans relative">
       
-      {/* 1. Global Ambient Background */}
-      <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,_#292524_0%,_#1c1917_40%,_#0c0a09_100%)] pointer-events-none"></div>
-      
-      {/* Noise Texture Overlay for entire app */}
-      <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none mix-blend-overlay"
-           style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }}>
-      </div>
-
       <ChatWidget />
 
+      {/* --- BACKGROUND: CASINO AMBIENCE --- */}
+      <div className="absolute inset-0 z-0 pointer-events-none bg-[#0a0514] overflow-hidden">
+          {/* Bokeh Lights */}
+          <div className="absolute top-0 left-[20%] w-[500px] h-[500px] bg-purple-900/20 rounded-full blur-[100px] animate-pulse-fast" style={{animationDuration: '8s'}}></div>
+          <div className="absolute top-[20%] right-[10%] w-[400px] h-[400px] bg-blue-900/10 rounded-full blur-[80px] animate-pulse-fast" style={{animationDuration: '10s'}}></div>
+          <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black via-[#0a0a0a] to-transparent"></div>
+      </div>
+
       {/* Header */}
-      <header className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-50 pointer-events-none">
-        <div className="flex items-center gap-2 pointer-events-auto bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full border border-white/10 ml-12 lg:ml-0 shadow-xl">
-          <div className="w-6 h-6 bg-gold-500 rounded flex items-center justify-center text-black font-bold text-xs shadow-inner">K</div>
-          <h1 className="font-playfair text-lg tracking-wider text-gold-400 hidden sm:block drop-shadow-md">khel.fun</h1>
+      <header className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-[60] pointer-events-none">
+        {/* Official Brand Logo - Top Left */}
+        <div className="flex items-center pointer-events-auto ml-16 lg:ml-4 group hover:scale-105 transition-transform duration-300">
+           <BrandLogo className="w-56 h-auto drop-shadow-lg" />
         </div>
-        <div className="flex items-center gap-6 pointer-events-auto">
-            <div className="flex items-center gap-2 bg-black/80 px-4 py-2 rounded-full border border-gold-500/30 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
-                <Coins className="text-gold-400 w-5 h-5" />
-                <span className="font-mono text-xl text-white tracking-widest text-shadow">${balance}</span>
+        
+        <div className="flex items-center gap-6 pointer-events-auto mt-2">
+            <div className="flex items-center gap-2 bg-[#1a1a1a] px-4 py-2 rounded-lg border border-white/10 shadow-lg">
+                <Coins className="text-khel-yellow w-5 h-5" />
+                <span className="font-anton text-2xl text-white tracking-wider">${balance}</span>
             </div>
         </div>
       </header>
 
-      {/* Main Table Container - PERSPECTIVE FIX HERE */}
-      <main className="flex-1 relative flex flex-col items-center w-full mx-auto overflow-hidden perspective-[1200px]">
+      {/* Main Game Container */}
+      <main className="flex-1 relative flex flex-col items-center justify-center w-full mx-auto perspective-1000 z-10">
         
-        {/* 2. REALISTIC TABLE SURFACE */}
-        {/* We use a large rounded element pushed down to simulate the semi-circular table */}
-        <div className="absolute top-[18vh] w-[140vw] h-[100vw] rounded-[50%] left-1/2 -translate-x-1/2 z-0 shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
+        {/* --- THE TABLE (3D Perspective) --- */}
+        {/* Moved closer to bottom and widened to fix perspective from "Oval" to "Player View Arc" */}
+        <div className="absolute top-[32vh] w-[180vw] h-[180vw] rounded-[50%] left-1/2 -translate-x-1/2 z-0 transform shadow-[0_-50px_100px_rgba(0,0,0,0.5)]">
             
-            {/* A. Padded Leather Rail (The dark brown rim) */}
-            <div className="absolute inset-0 rounded-[50%] bg-[#2a1d15] border-t border-white/5 shadow-[inset_0_10px_20px_rgba(0,0,0,0.8)] overflow-hidden">
-                {/* Leather texture grain */}
-                 <div className="absolute inset-0 opacity-20" 
-                      style={{ 
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.5'/%3E%3C/svg%3E")`,
-                        filter: 'contrast(1.5)' 
-                      }}>
-                </div>
-                {/* Specular highlight on the rail curve */}
-                <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-white/10 to-transparent rounded-t-[50%] blur-md"></div>
+            {/* 1. Rail Construction (Outer) */}
+            <div className="absolute inset-0 rounded-[50%] bg-[#222] shadow-2xl overflow-hidden">
+                
+                {/* Leather Texture */}
+                <div className="absolute inset-0 opacity-80 mix-blend-overlay" style={{ backgroundImage: `url("${LEATHER_TEXTURE}")` }}></div>
+                
+                {/* 3D Volume Gradient (Highlight -> Shadow) */}
+                <div className="absolute inset-0 bg-gradient-to-b from-[#555] via-[#222] to-[#000] opacity-90"></div>
+                
+                {/* Rim Light (Sharp Top Edge) */}
+                <div className="absolute inset-x-0 top-0 h-[2px] bg-white/30 blur-[1px]"></div>
+                
+                {/* Padding Shadow (Inner) */}
+                <div className="absolute inset-0 shadow-[inset_0_10px_20px_rgba(0,0,0,0.8)] rounded-[50%]"></div>
             </div>
 
-            {/* B. Green Felt Surface (Inner Area) */}
-            <div className="absolute top-[30px] left-[30px] right-[30px] bottom-[30px] rounded-[50%] bg-[#064e3b] shadow-[inset_0_5px_15px_rgba(0,0,0,0.5)] overflow-hidden border border-black/20">
+            {/* 2. Wood Trim Separator */}
+            <div className="absolute top-[35px] left-[35px] right-[35px] bottom-[35px] rounded-[50%] bg-[#3d2b1f] border-t border-white/10 shadow-inner"></div>
+
+            {/* 3. Felt Surface (Inner) */}
+            <div className="absolute top-[45px] left-[45px] right-[45px] bottom-[45px] rounded-[50%] bg-[#0a2647] shadow-[inset_0_20px_60px_rgba(0,0,0,0.9)] overflow-hidden relative">
                  
-                 {/* 1. Felt Texture (Noise) */}
-                 <div className="absolute inset-0 opacity-30 mix-blend-overlay"
-                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }}>
+                 {/* Felt Texture (Procedural Woven Noise) */}
+                 <div className="absolute inset-0 opacity-50 mix-blend-overlay" style={{ backgroundImage: `url("${FELT_TEXTURE}")` }}></div>
+
+                 {/* Lighting: Overhead Lamp Spotlight (Conical) */}
+                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-10%,_rgba(255,255,255,0.15)_0%,_transparent_60%)] mix-blend-overlay"></div>
+                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_30%,_rgba(0,0,0,0.6)_100%)]"></div>
+
+                 {/* Khel.fun Watermark - Burnt into Felt */}
+                 <div className="absolute inset-0 flex items-center justify-center opacity-[0.07] pointer-events-none mix-blend-overlay transform -translate-y-32 scale-125">
+                    <BrandLogo className="w-96 h-auto text-white" variant="monochrome" />
                  </div>
                  
-                 {/* 2. Table Lighting (Spotlight Vignette) */}
-                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,_rgba(255,255,255,0.1)_0%,_rgba(0,0,0,0)_40%,_rgba(0,0,0,0.6)_100%)] pointer-events-none"></div>
-
-                 {/* 3. Printed Markings on Table (Text) */}
-                 <div className="absolute top-28 left-1/2 -translate-x-1/2 text-center opacity-40 transform" style={{ mixBlendMode: 'overlay' }}>
-                    <h2 className="text-6xl font-playfair text-[#a7f3d0] font-black tracking-[0.2em] blur-[0.5px]">BLACKJACK</h2>
-                    <div className="text-sm font-mono tracking-[0.5em] text-[#a7f3d0] mt-3 font-bold uppercase">
-                        Dealer stands on 17 • Pays 3 to 2
+                 {/* Regulatory Text */}
+                 <div className="absolute top-48 left-1/2 -translate-x-1/2 text-center opacity-40 transform">
+                    <h2 className="text-4xl font-anton text-[#8ba4c0] tracking-widest text-shadow-sm drop-shadow-md">BLACKJACK</h2>
+                    <div className="text-[10px] font-mono tracking-[0.4em] text-[#8ba4c0] mt-2 font-bold uppercase border-t border-b border-[#8ba4c0]/30 py-1">
+                        Pays 3 to 2 • Dealer stands on 17
                     </div>
                  </div>
-
-                 {/* 4. Decorative Arch Line */}
-                 <div className="absolute top-52 left-1/2 -translate-x-1/2 w-[70%] h-[400px] border-t-2 border-[#a7f3d0] rounded-[50%] opacity-20 blur-[1px]"></div>
+                 
+                 {/* Ghost Betting Circles */}
+                 <div className="absolute bottom-[28vh] left-1/2 -translate-x-1/2 flex gap-12 opacity-10 pointer-events-none">
+                     <div className="w-20 h-20 rounded-full border-2 border-dashed border-white"></div>
+                     <div className="w-32 h-32 rounded-full border-4 border-white"></div>
+                     <div className="w-20 h-20 rounded-full border-2 border-dashed border-white"></div>
+                 </div>
             </div>
         </div>
 
-        {/* Dealer Zone (Avatars & Cards) */}
-        <div className="relative z-10 w-full flex flex-col items-center mt-6 md:mt-10 preserve-3d">
+        {/* --- GAMEPLAY LAYER (Sits on top of table visually) --- */}
+        
+        {/* Dealer Area */}
+        <div className="relative z-20 w-full flex flex-col items-center -mt-24 mb-10">
             
-            <div className="absolute top-10 right-4 md:right-32 z-20 pointer-events-auto drop-shadow-2xl">
-                <DeckPile cardCount={deck.length} />
-            </div>
-
-            <div className="relative z-0 mb-[-30px] md:mb-[-40px] transform scale-90 md:scale-100 transition-all duration-500">
-                
-                {/* Commentary Bubble */}
+            {/* Dealer Avatar & Bubble */}
+            <div className="relative mb-[-40px] z-10">
+                 {/* Commentary Bubble */}
                 <div className={`
-                   absolute -right-32 top-0 md:-right-48 md:top-8 w-36 md:w-56 
-                   bg-white/95 backdrop-blur-xl text-stone-900 p-4 rounded-2xl rounded-tl-none shadow-[0_10px_40px_rgba(0,0,0,0.3)] 
-                   border border-white/40 z-50 transform transition-all duration-300 origin-bottom-left
-                   ${isThinking ? 'scale-105 animate-pulse' : 'scale-100'}
+                   absolute -right-36 top-8 w-48
+                   bg-[#111] text-white p-4 rounded-xl border-l-4 border-khel-cyan
+                   shadow-2xl z-50 transform transition-all duration-300 origin-bottom-left
+                   ${isThinking ? 'scale-105' : 'scale-100'}
                    ${!dealerMessage || !showComments ? 'opacity-0 pointer-events-none translate-y-4 scale-90' : 'opacity-100 translate-y-0'}
                 `}>
-                    <div className="font-bold text-[10px] text-stone-400 mb-1 uppercase tracking-wider flex justify-between items-center">
-                        <span>Vic</span>
-                        {isThinking && <span className="w-1.5 h-1.5 bg-gold-500 rounded-full animate-ping"></span>}
+                    <div className="font-anton text-xs text-khel-cyan mb-1 uppercase tracking-wider flex justify-between items-center">
+                        <span>VIC</span>
+                        {isThinking && <span className="w-1.5 h-1.5 bg-khel-cyan rounded-full animate-ping"></span>}
                     </div>
-                    <p className="text-sm font-medium leading-tight font-sans italic">{dealerMessage}</p>
-                    <div className="absolute -left-2 bottom-0 w-4 h-4 bg-white/95 transform rotate-45 skew-x-12 border-l border-b border-white/40"></div>
+                    <p className="text-sm font-sans text-gray-200 leading-snug">{dealerMessage}</p>
                 </div>
-                
+
                 <VicAvatar 
-                  className="w-40 h-40 md:w-56 md:h-56 filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]" 
+                  className="w-48 h-48 drop-shadow-[0_20px_50px_rgba(0,0,0,0.6)]" 
                   isThinking={isThinking} 
                   imageUrl={dealerImageUrl}
                   dominantResult={dominantResult}
                 />
             </div>
 
-            <div className="relative z-20 flex flex-col items-center min-h-[140px] preserve-3d">
-                {/* Dealer Cards Container */}
-                <div className="flex items-center justify-center transform drop-shadow-xl pl-4 preserve-3d">
+            {/* Dealer Cards */}
+            <div className="relative z-20 flex flex-col items-center min-h-[140px]">
+                <div className="flex items-center justify-center transform pl-4">
                     {dealerHand.length > 0 ? (
                          dealerHand.map((card, i) => (
                             <CardComponent key={`dealer-${i}`} card={card} index={i} isDealer={true} />
                          ))
                     ) : (
-                        <div className="w-24 h-36 border-2 border-dashed border-white/10 rounded-lg flex items-center justify-center text-white/10 text-xs shadow-inner">
+                        <div className="w-24 h-36 border-2 border-dashed border-white/10 rounded-lg flex items-center justify-center text-white/10 text-xs font-anton uppercase tracking-widest bg-black/20">
                             House
                         </div>
                     )}
                 </div>
                 
-                <div className="mt-4 flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/60 border border-white/10 backdrop-blur-md shadow-lg">
-                    <Shield className="w-3 h-3 text-gold-400" />
-                    <span className="text-xs font-bold text-gray-200 uppercase tracking-widest text-shadow-sm">
+                {/* Dealer Tag */}
+                <div className="mt-4 flex items-center gap-2 px-4 py-1.5 rounded bg-[#111] border border-white/10 shadow-lg">
+                    <Shield className="w-3 h-3 text-khel-red" />
+                    <span className="text-xs font-anton text-white uppercase tracking-widest">
                         {gameState === GameState.Betting ? "House" : `Dealer ${dealerScore > 0 ? dealerScore : ''}`}
                     </span>
                 </div>
             </div>
+            
+            {/* Deck Pile Positioned on Table */}
+            <div className="absolute top-20 right-[15%] hidden md:block z-10 opacity-90 transform rotate-[-5deg]">
+                 <DeckPile cardCount={deck.length} />
+            </div>
         </div>
 
-        {/* Spacer */}
-        <div className="flex-1"></div>
-
-        {/* Player Zone */}
-        <div className="relative z-30 w-full max-w-4xl px-4 mb-8 flex flex-col items-center">
+        {/* Player Area */}
+        <div className="relative z-30 w-full max-w-4xl px-4 flex flex-col items-center min-h-[300px] justify-end pb-8">
             
-            {/* Betting Spots (Printed on Felt look) */}
+            {/* Betting Spots (Interactive) */}
             {(gameState === GameState.Betting || gameState === GameState.Dealing) && (
-                <div className="flex items-center justify-center gap-4 md:gap-8 mb-8 scale-90 md:scale-100 animate-slide-up">
+                <div className="flex items-center justify-center gap-4 md:gap-8 mb-8 animate-slide-up relative z-40">
                      
                      {/* 1. Perfect Pairs Spot */}
                      <button 
                         onClick={() => addToBet(selectedChip, 'pp')}
                         disabled={balance < selectedChip || gameState === GameState.Dealing}
                         className={`
-                           relative w-20 h-20 rounded-full border-2 flex flex-col items-center justify-center transition-all duration-300
-                           ${perfectPairsBet > 0 ? 'border-yellow-400 bg-yellow-900/30 shadow-[0_0_20px_rgba(250,204,21,0.3)]' : 'border-white/10 hover:border-yellow-400/40 bg-white/5'}
+                           relative w-20 h-20 rounded-full border-2 flex flex-col items-center justify-center transition-all duration-200
+                           ${perfectPairsBet > 0 ? 'border-khel-yellow bg-khel-yellow/20 shadow-[0_0_20px_rgba(255,255,51,0.3)]' : 'border-white/10 hover:border-khel-yellow/50 bg-black/40'}
                         `}
                      >
-                        <span className="text-[9px] font-black text-yellow-500/80 uppercase tracking-widest mb-1" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>Pairs</span>
-                        <Gem className="w-4 h-4 text-yellow-500/40" />
+                        <span className="text-[10px] font-anton text-khel-yellow uppercase tracking-widest mb-1 opacity-80">Pairs</span>
+                        <Gem className="w-4 h-4 text-khel-yellow/50" />
                         {perfectPairsBet > 0 && (
-                            <div className="absolute inset-0 flex items-center justify-center z-10 drop-shadow-lg">
-                                <Chip chip={{ value: perfectPairsBet, color: 'bg-yellow-600', borderColor: '', label: '' }} disabled />
+                            <div className="absolute inset-0 flex items-center justify-center z-10">
+                                <Chip chip={{ value: perfectPairsBet, color: 'bg-khel-yellow', borderColor: '', label: '' }} disabled />
                             </div>
                         )}
                      </button>
@@ -734,15 +751,14 @@ const App: React.FC = () => {
                         onClick={() => addToBet(selectedChip, 'main')}
                         disabled={balance < selectedChip || gameState === GameState.Dealing}
                         className={`
-                           relative w-32 h-32 rounded-full border-4 flex flex-col items-center justify-center transition-all duration-300
-                           ${currentBet > 0 ? 'border-gold-500 bg-gold-900/20 shadow-[0_0_30px_rgba(234,179,8,0.2)]' : 'border-white/20 hover:border-gold-400/60 bg-white/5'}
+                           relative w-32 h-32 rounded-full border-4 flex flex-col items-center justify-center transition-all duration-200
+                           ${currentBet > 0 ? 'border-khel-red bg-khel-red/20 shadow-[0_0_30px_rgba(206,32,41,0.4)]' : 'border-white/20 hover:border-khel-red/50 bg-black/40'}
                         `}
                      >
-                        <span className="text-xs font-black text-gold-400/80 uppercase tracking-widest mb-1" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>Place Bet</span>
-                        <div className="w-20 h-0.5 bg-white/10 rounded-full mb-1"></div>
+                        <span className="text-sm font-anton text-khel-red uppercase tracking-widest mb-1 opacity-80">Place Bet</span>
                         {currentBet > 0 && (
-                            <div className="absolute inset-0 flex items-center justify-center z-10 drop-shadow-2xl">
-                                <Chip chip={{ value: currentBet, color: 'bg-gold-600', borderColor: '', label: '' }} disabled />
+                            <div className="absolute inset-0 flex items-center justify-center z-10">
+                                <Chip chip={{ value: currentBet, color: 'bg-khel-red', borderColor: '', label: '' }} disabled />
                             </div>
                         )}
                      </button>
@@ -752,24 +768,25 @@ const App: React.FC = () => {
                         onClick={() => addToBet(selectedChip, 'rummy')}
                         disabled={balance < selectedChip || gameState === GameState.Dealing}
                         className={`
-                           relative w-20 h-20 rounded-full border-2 flex flex-col items-center justify-center transition-all duration-300
-                           ${rummyBet > 0 ? 'border-emerald-400 bg-emerald-900/30 shadow-[0_0_20px_rgba(52,211,153,0.3)]' : 'border-white/10 hover:border-emerald-400/40 bg-white/5'}
+                           relative w-20 h-20 rounded-full border-2 flex flex-col items-center justify-center transition-all duration-200
+                           ${rummyBet > 0 ? 'border-khel-cyan bg-khel-cyan/20 shadow-[0_0_20px_rgba(0,255,255,0.3)]' : 'border-white/10 hover:border-khel-cyan/50 bg-black/40'}
                         `}
                      >
-                        <span className="text-[9px] font-black text-emerald-500/80 uppercase tracking-widest mb-1" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>21+3</span>
-                        <Spade className="w-4 h-4 text-emerald-500/40" />
+                        <span className="text-[10px] font-anton text-khel-cyan uppercase tracking-widest mb-1 opacity-80">21+3</span>
+                        <Spade className="w-4 h-4 text-khel-cyan/50" />
                          {rummyBet > 0 && (
-                            <div className="absolute inset-0 flex items-center justify-center z-10 drop-shadow-lg">
-                                <Chip chip={{ value: rummyBet, color: 'bg-emerald-600', borderColor: '', label: '' }} disabled />
+                            <div className="absolute inset-0 flex items-center justify-center z-10">
+                                <Chip chip={{ value: rummyBet, color: 'bg-khel-cyan', borderColor: '', label: '' }} disabled />
                             </div>
                         )}
                      </button>
                 </div>
             )}
 
-            <div className="flex items-end justify-center gap-8 min-h-[180px] preserve-3d">
+            {/* Player Hands */}
+            <div className="flex items-end justify-center gap-8 min-h-[180px]">
                  {playerHands.length === 0 && gameState !== GameState.Betting && gameState !== GameState.Dealing && (
-                    <div className="w-24 h-36 border-2 border-dashed border-white/10 rounded-lg flex items-center justify-center text-white/10 text-xs">
+                    <div className="w-24 h-36 border-2 border-dashed border-white/10 rounded-lg flex items-center justify-center text-white/10 text-xs font-anton uppercase">
                         Empty
                     </div>
                 )}
@@ -784,14 +801,13 @@ const App: React.FC = () => {
                         <div 
                             key={`hand-${handIndex}`} 
                             className={`
-                                relative flex flex-col items-center transition-all duration-500 preserve-3d
-                                ${isCurrent ? 'scale-110 z-40 translate-y-[-10px]' : 'scale-95 opacity-80 z-30'}
-                                ${result !== GameResult.None && !isGameOver ? 'opacity-60 blur-[1px]' : ''}
+                                relative flex flex-col items-center transition-all duration-500
+                                ${isCurrent ? 'scale-105 z-50 -translate-y-4' : 'scale-95 opacity-80 z-30'}
                             `}
                         >
                             {/* Indicators */}
                             {meta?.isDoubled && (
-                                <div className="absolute -top-16 right-0 z-50 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full border border-white shadow-lg animate-bounce-in">
+                                <div className="absolute -top-16 right-0 z-50 bg-khel-red text-white text-[10px] font-anton px-2 py-1 rounded shadow-lg animate-bounce-in">
                                     DOUBLED
                                 </div>
                             )}
@@ -799,8 +815,8 @@ const App: React.FC = () => {
                             {/* Score Bubble */}
                             {gameState !== GameState.Betting && gameState !== GameState.Dealing && (
                                 <div className={`
-                                    absolute -top-14 z-50 px-3 py-1 rounded-full font-mono text-lg font-bold border shadow-xl
-                                    ${isCurrent ? 'bg-gold-500 text-black border-white' : 'bg-black/80 text-white border-white/20'}
+                                    absolute -top-12 z-50 px-3 py-1 rounded font-anton text-lg shadow-xl border
+                                    ${isCurrent ? 'bg-khel-yellow text-black border-white' : 'bg-[#222] text-white border-white/20'}
                                 `}>
                                     {score}
                                 </div>
@@ -810,19 +826,19 @@ const App: React.FC = () => {
                             {handIndex === 0 && (sideBetResults.pp || sideBetResults.rummy) && (
                                 <div className="absolute -left-32 top-0 flex flex-col gap-2 z-50 animate-bounce-in">
                                     {sideBetResults.pp && (
-                                        <div className="bg-yellow-600 text-white text-xs font-bold px-3 py-1 rounded shadow-lg border border-yellow-300 whitespace-nowrap">
+                                        <div className="bg-khel-yellow text-black text-xs font-bold px-3 py-1 rounded shadow-md border border-white whitespace-nowrap font-anton">
                                             {sideBetResults.pp}
                                         </div>
                                     )}
                                     {sideBetResults.rummy && (
-                                        <div className="bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded shadow-lg border border-emerald-300 whitespace-nowrap">
+                                        <div className="bg-khel-cyan text-black text-xs font-bold px-3 py-1 rounded shadow-md border border-white whitespace-nowrap font-anton">
                                             {sideBetResults.rummy}
                                         </div>
                                     )}
                                 </div>
                             )}
 
-                            <div className="flex items-center justify-center drop-shadow-2xl pl-4 preserve-3d">
+                            <div className="flex items-center justify-center drop-shadow-2xl pl-6">
                                 {hand.map((card, cardIndex) => (
                                     <CardComponent key={`p-${handIndex}-${cardIndex}`} card={card} index={cardIndex} />
                                 ))}
@@ -832,11 +848,11 @@ const App: React.FC = () => {
                             {(result !== GameResult.None || (isGameOver && result !== GameResult.None)) && (
                                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 whitespace-nowrap pointer-events-none">
                                     <div className={`
-                                        px-6 py-3 rounded-xl border-4 shadow-[0_0_20px_rgba(0,0,0,0.5)] backdrop-blur-md font-black text-2xl tracking-widest transform -rotate-6
-                                        ${result === GameResult.PlayerWin || result === GameResult.Blackjack ? 'bg-green-600/90 border-green-400 text-white' : ''}
-                                        ${result === GameResult.DealerWin || result === GameResult.Bust ? 'bg-red-600/90 border-red-400 text-white' : ''}
-                                        ${result === GameResult.Push ? 'bg-gray-600/90 border-gray-400 text-white' : ''}
-                                        ${result === GameResult.Surrender ? 'bg-purple-600/90 border-purple-400 text-white' : ''}
+                                        px-4 py-2 border-2 shadow-2xl font-anton text-2xl tracking-widest transform -rotate-3
+                                        ${result === GameResult.PlayerWin || result === GameResult.Blackjack ? 'bg-khel-cyan text-black border-white' : ''}
+                                        ${result === GameResult.DealerWin || result === GameResult.Bust ? 'bg-khel-red text-white border-white' : ''}
+                                        ${result === GameResult.Push ? 'bg-gray-600 text-white border-gray-400' : ''}
+                                        ${result === GameResult.Surrender ? 'bg-purple-600 text-white border-purple-400' : ''}
                                     `}>
                                         {result === GameResult.PlayerWin && "WINNER"}
                                         {result === GameResult.DealerWin && "DEALER WINS"}
@@ -854,14 +870,14 @@ const App: React.FC = () => {
             
             {/* Player Stats Bar */}
             {gameState !== GameState.Betting && gameState !== GameState.Dealing && (
-                <div className="mt-4 flex items-center gap-4 text-white/70 text-sm font-mono bg-black/40 px-6 py-2 rounded-full border border-white/5 backdrop-blur-sm shadow-lg">
+                <div className="mt-6 flex items-center gap-4 text-white/90 text-sm font-sans font-bold bg-[#1a1a1a] px-6 py-2 rounded-full border border-white/10 shadow-lg z-40">
                     <div className="flex gap-2">
-                        <span>BET:</span>
-                        <span className="text-white font-bold">${handMetadata.reduce((acc, m) => acc + m.bet, 0)}</span>
+                        <span className="text-khel-cyan">BET:</span>
+                        <span className="text-white">${handMetadata.reduce((acc, m) => acc + m.bet, 0)}</span>
                     </div>
                     {insuranceBet > 0 && (
                         <div className="flex gap-2 border-l border-white/20 pl-4">
-                            <span className="text-yellow-500">INS:</span>
+                            <span className="text-khel-orange">INS:</span>
                             <span className="text-white">${insuranceBet}</span>
                         </div>
                     )}
@@ -873,29 +889,29 @@ const App: React.FC = () => {
       </main>
 
       {/* Control Panel / Footer */}
-      <footer className="relative z-50 pb-6 px-4 pt-4 bg-gradient-to-t from-black via-stone-950/95 to-transparent">
+      <footer className="relative z-[60] pb-6 px-4 pt-4 bg-[#111] border-t border-white/5 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
         <div className="max-w-4xl mx-auto">
             
             {/* Insurance Prompt */}
             {gameState === GameState.Insurance && (
-                <div className="absolute -top-32 left-1/2 transform -translate-x-1/2 flex flex-col items-center bg-stone-900/95 backdrop-blur-xl p-6 rounded-2xl border border-gold-500/50 shadow-2xl animate-bounce-in w-80">
-                    <div className="flex items-center gap-2 text-gold-400 mb-2 font-bold uppercase tracking-widest text-sm">
+                <div className="absolute -top-32 left-1/2 transform -translate-x-1/2 flex flex-col items-center bg-[#222] p-6 rounded-xl border-2 border-khel-red shadow-2xl animate-bounce-in w-80 z-[70]">
+                    <div className="flex items-center gap-2 text-khel-red mb-2 font-anton uppercase tracking-widest text-lg">
                         <ShieldAlert className="w-5 h-5" />
                         Insurance?
                     </div>
-                    <div className="text-xs text-center text-gray-400 mb-4 font-medium">
+                    <div className="text-xs text-center text-gray-400 mb-4 font-bold">
                         Cost: ${currentBet / 2} • Pays 2:1
                     </div>
                     <div className="flex gap-3 w-full">
                         <button 
                             onClick={() => handleInsurance(true)}
-                            className="flex-1 py-3 bg-gold-600 hover:bg-gold-500 text-black font-bold rounded-lg transition-colors"
+                            className="flex-1 py-3 bg-khel-red hover:bg-red-700 text-white font-anton tracking-wider rounded transition-colors"
                         >
                             YES
                         </button>
                         <button 
                             onClick={() => handleInsurance(false)}
-                            className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition-colors"
+                            className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 text-white font-anton tracking-wider rounded transition-colors"
                         >
                             NO
                         </button>
@@ -919,21 +935,21 @@ const App: React.FC = () => {
                     </div>
                     
                     {/* Action Bar */}
-                    <div className="flex items-center gap-4 w-full max-w-md bg-stone-900/50 p-2 rounded-2xl border border-white/5 backdrop-blur-md">
+                    <div className="flex items-center gap-4 w-full max-w-md bg-[#1a1a1a] p-3 rounded-xl border border-white/5 shadow-lg">
                          <div className="flex-1 flex flex-col items-end pr-4 border-r border-white/10">
                             <span className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Total Bet</span>
-                            <span className="text-2xl font-mono font-bold text-gold-500">${currentBet + perfectPairsBet + rummyBet}</span>
+                            <span className="text-2xl font-anton text-khel-cyan">${currentBet + perfectPairsBet + rummyBet}</span>
                         </div>
                         <div className="flex-1 flex items-center gap-2">
                             <button 
                                 onClick={dealGame}
                                 disabled={currentBet === 0 || gameState === GameState.Dealing}
-                                className="flex-1 py-3 bg-gold-600 hover:bg-gold-500 disabled:bg-stone-800 disabled:text-stone-600 text-black font-black text-lg rounded-xl shadow-[0_0_20px_rgba(234,179,8,0.2)] transform transition hover:scale-105 active:scale-95 tracking-wide"
+                                className="flex-1 py-3 bg-khel-red hover:bg-red-700 disabled:bg-stone-800 disabled:text-stone-600 text-white font-anton text-xl rounded shadow-sm active:translate-y-1 transform transition tracking-widest"
                             >
                                 {gameState === GameState.Dealing ? "DEALING..." : "DEAL"}
                             </button>
                              {(currentBet > 0 || perfectPairsBet > 0 || rummyBet > 0) && gameState !== GameState.Dealing && (
-                                <button onClick={clearBet} className="p-3 rounded-xl bg-stone-800 hover:bg-stone-700 text-white/80 transition shadow-lg border border-white/5">
+                                <button onClick={clearBet} className="p-3 rounded bg-stone-800 hover:bg-stone-700 text-white/80 transition shadow-sm border border-white/5">
                                     <RefreshCw className="w-5 h-5" />
                                 </button>
                             )}
@@ -947,13 +963,13 @@ const App: React.FC = () => {
                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
                     <button 
                         onClick={hit}
-                        className="py-4 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xl rounded-xl shadow-[0_5px_15px_rgba(16,185,129,0.3)] transform transition hover:-translate-y-1 active:translate-y-0 active:scale-95 border-b-4 border-emerald-800 active:border-b-0"
+                        className="py-4 px-4 bg-khel-cyan hover:bg-cyan-400 text-black font-anton text-2xl rounded shadow-sm active:translate-y-1 transform transition"
                     >
                         HIT
                     </button>
                     <button 
                         onClick={() => stand()}
-                        className="py-4 px-4 bg-red-600 hover:bg-red-500 text-white font-black text-xl rounded-xl shadow-[0_5px_15px_rgba(220,38,38,0.3)] transform transition hover:-translate-y-1 active:translate-y-0 active:scale-95 border-b-4 border-red-800 active:border-b-0"
+                        className="py-4 px-4 bg-khel-red hover:bg-red-600 text-white font-anton text-2xl rounded shadow-sm active:translate-y-1 transform transition"
                     >
                         STAND
                     </button>
@@ -962,28 +978,28 @@ const App: React.FC = () => {
                         <button 
                             onClick={doubleDown}
                             disabled={!canDouble}
-                            className="flex flex-col items-center justify-center p-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-500 text-white font-bold rounded-xl shadow-lg transition border-b-4 border-blue-800 active:border-b-0 disabled:border-none"
+                            className="flex flex-col items-center justify-center p-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-500 text-white font-anton rounded shadow-sm active:translate-y-1 transition disabled:shadow-none"
                         >
                             <ArrowDownCircle className="w-5 h-5 mb-1" />
-                            <span className="text-xs md:text-sm">DOUBLE</span>
+                            <span className="text-xs md:text-sm tracking-wide">DOUBLE</span>
                         </button>
                         
                         <button 
                             onClick={split}
                             disabled={!canSplit}
-                            className="flex flex-col items-center justify-center p-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-800 disabled:text-gray-500 text-white font-bold rounded-xl shadow-lg transition border-b-4 border-purple-800 active:border-b-0 disabled:border-none"
+                            className="flex flex-col items-center justify-center p-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-800 disabled:text-gray-500 text-white font-anton rounded shadow-sm active:translate-y-1 transition disabled:shadow-none"
                         >
                             <Split className="w-5 h-5 mb-1" />
-                            <span className="text-xs md:text-sm">SPLIT</span>
+                            <span className="text-xs md:text-sm tracking-wide">SPLIT</span>
                         </button>
 
                         <button 
                             onClick={surrender}
                             disabled={!canSurrender}
-                            className="flex flex-col items-center justify-center p-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 text-white font-bold rounded-xl shadow-lg transition border-b-4 border-gray-900 active:border-b-0 disabled:border-none"
+                            className="flex flex-col items-center justify-center p-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 text-white font-anton rounded shadow-sm active:translate-y-1 transition disabled:shadow-none"
                         >
                             <Flag className="w-5 h-5 mb-1" />
-                            <span className="text-xs md:text-sm">FOLD</span>
+                            <span className="text-xs md:text-sm tracking-wide">FOLD</span>
                         </button>
                     </div>
                  </div>
@@ -994,10 +1010,10 @@ const App: React.FC = () => {
                  <div className="flex justify-center w-full animate-bounce-in">
                     <button 
                         onClick={resetGame}
-                        className="flex items-center gap-3 px-10 py-4 bg-gold-600 hover:bg-gold-500 text-black font-black text-xl rounded-full shadow-[0_0_30px_rgba(234,179,8,0.4)] transform transition hover:scale-105 active:scale-95 tracking-wide"
+                        className="flex items-center gap-3 px-12 py-5 bg-khel-yellow hover:bg-yellow-300 text-black font-anton text-2xl rounded shadow-md transform transition hover:scale-105 active:scale-95 tracking-widest"
                     >
                         <RefreshCw className="w-6 h-6" />
-                        PLAY AGAIN
+                        <span>PLAY AGAIN</span>
                     </button>
                  </div>
             )}

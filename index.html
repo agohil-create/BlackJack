@@ -9,17 +9,24 @@
       tailwind.config = {
         theme: {
           extend: {
+            fontFamily: {
+              'anton': ['"Anton"', 'sans-serif'],
+              'sans': ['"Open Sans"', 'sans-serif'],
+            },
             colors: {
+              khel: {
+                red: '#CE2029',
+                orange: '#FFA500',
+                yellow: '#FFFF33',
+                cyan: '#00FFFF',
+                dark: '#050505',
+                blue: '#001F3F' // Deep blue for card backs/backgrounds
+              },
               felt: {
                 500: '#35654d',
                 600: '#2a533e',
                 800: '#1e3e2e',
               },
-              gold: {
-                400: '#fbbf24',
-                500: '#f59e0b',
-                600: '#d97706',
-              }
             },
             animation: {
               'deal-card': 'deal 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards',
@@ -30,6 +37,7 @@
               'breathe': 'breathe 5s ease-in-out infinite',
               'slide-up': 'slideUp 0.6s ease-out forwards',
               'bounce-in': 'bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards',
+              'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             },
             keyframes: {
               deal: {
@@ -42,8 +50,8 @@
                 '100%': { transform: 'translateX(200%) skewX(-15deg)', opacity: '0' },
               },
               speaking: {
-                '0%, 100%': { boxShadow: '0 0 0 0px rgba(251, 191, 36, 0)', borderColor: 'rgba(255, 255, 255, 0.2)' },
-                '50%': { boxShadow: '0 0 20px 2px rgba(251, 191, 36, 0.3)', borderColor: 'rgba(251, 191, 36, 0.8)', transform: 'scale(1.02)' },
+                '0%, 100%': { boxShadow: '0 0 0 0px rgba(0, 255, 255, 0)', borderColor: 'rgba(255, 255, 255, 0.2)' },
+                '50%': { boxShadow: '0 0 20px 2px rgba(0, 255, 255, 0.3)', borderColor: 'rgba(0, 255, 255, 0.8)', transform: 'scale(1.02)' },
               },
               blink: {
                 '0%, 90%, 100%': { transform: 'scaleY(1)' },
@@ -71,10 +79,16 @@
       }
     </script>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Playfair+Display:wght@700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Anton&family=Open+Sans:wght@400;600;800&display=swap');
+      
       body {
-        font-family: 'Inter', sans-serif;
-        background-color: #0c0a09; /* stone-950 */
+        font-family: 'Open Sans', sans-serif;
+        background-color: #050505; 
+      }
+      
+      h1, h2, h3, h4, h5, button {
+        font-family: 'Anton', sans-serif;
+        letter-spacing: 0.05em;
       }
       
       /* 3D Transform Utilities for Realistic Flipping */
